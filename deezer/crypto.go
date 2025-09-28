@@ -1,4 +1,4 @@
-package crypto
+package deezer
 
 import (
 	"crypto/cipher"

@@ -9,7 +9,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/birabittoh/miri/internal/deezer"
+	"github.com/birabittoh/miri/deezer"
 )
 
 const chunkSize = 2048
@@ -56,7 +56,7 @@ func (c *Client) downloadSong(ctx context.Context, song *deezer.Song) (content [
 
 	mediaFormat := media.GetFormat()
 
-	key := GetKey(c.appConfig.SecretKey, song.ID)
+	key := deezer.GetKey(c.appConfig.SecretKey, song.ID)
 
 	var buffer bytes.Buffer
 	if err := c.streamMedia(dlCtx, stream, key, &buffer); err != nil {
@@ -107,7 +107,7 @@ func (c *Client) streamMedia(ctx context.Context, stream io.ReadCloser, key []by
 		}
 
 		if chunk%3 == 0 && totalRead == chunkSize {
-			buffer, err = Decrypt(buffer, key)
+			buffer, err = deezer.Decrypt(buffer, key)
 			if err != nil {
 				return err
 			}
