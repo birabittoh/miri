@@ -12,7 +12,6 @@ type Config struct {
 	SecretKey string
 	DataDir   string
 	Quality   string
-	Limit     int
 	Timeout   time.Duration
 }
 
@@ -39,11 +38,6 @@ func getEnv(key, defaultValue string) string {
 }
 
 func NewConfig() (*Config, error) {
-	limit, err := strconv.Atoi(getEnv("LIMIT", "100"))
-	if err != nil || limit <= 0 {
-		limit = 100
-	}
-
 	timeoutInt, err := strconv.Atoi(getEnv("TIMEOUT", "30"))
 	if err != nil || timeoutInt <= 0 {
 		timeoutInt = 30
@@ -55,7 +49,6 @@ func NewConfig() (*Config, error) {
 		SecretKey: getEnv("SECRET_KEY", ""),
 		DataDir:   getEnv("DATA_DIR", "data"),
 		Quality:   getEnv("QUALITY", "mp3_128"),
-		Limit:     limit,
 		Timeout:   timeout,
 	}
 
