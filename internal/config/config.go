@@ -3,66 +3,67 @@ package config
 import (
 	"fmt"
 	"os"
-	"path"
-	"path/filepath"
+	"strconv"
+	"time"
 
-	"github.com/mathismqn/godeez/internal/fileutil"
-	"github.com/mathismqn/godeez/internal/store"
-	"github.com/spf13/viper"
+	"github.com/birabittoh/miri/internal/fileutil"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	ArlCookie string `mapstructure:"arl_cookie"`
-	SecretKey string `mapstructure:"secret_key"`
-	OutputDir string `mapstructure:"output_dir"`
-	HomeDir   string
+	ArlCookie string
+	SecretKey string
+	DataDir   string
+	Quality   string
+	Limit     int
+	Timeout   time.Duration
 }
 
-func New(cfgPath string) (*Config, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
+func getEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
+func New() (*Config, error) {
+	godotenv.Load()
+
+	limit := getEnv("LIMIT", "100")
+	timeout := getEnv("TIMEOUT", "30")
+
+	limitInt, err := strconv.Atoi(limit)
+	if err != nil || limitInt <= 0 {
+		limitInt = 100
 	}
 
-	cfgDir := filepath.Join(homeDir, ".godeez")
-	if err := fileutil.EnsureDir(cfgDir); err != nil {
-		return nil, fmt.Errorf("failed to create config directory: %w", err)
+	timeoutInt, err := strconv.Atoi(timeout)
+	if err != nil || timeoutInt <= 0 {
+		timeoutInt = 30
 	}
 
-	if cfgPath == "" {
-		cfgPath = path.Join(cfgDir, "config.toml")
-		if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
-			fmt.Printf("Config file not found, creating one at %s\n", cfgPath)
-
-			content := []byte("arl_cookie = ''\nsecret_key = ''\noutput_dir = ''\n")
-			if err := os.WriteFile(cfgPath, content, 0644); err != nil {
-				return nil, fmt.Errorf("failed to create config file: %w", err)
-			}
-
-			os.Exit(0)
-		}
+	config := &Config{
+		ArlCookie: getEnv("ARL_COOKIE", ""),
+		SecretKey: getEnv("SECRET_KEY", ""),
+		DataDir:   getEnv("DATA_DIR", "data"),
+		Quality:   getEnv("QUALITY", "mp3_128"),
+		Limit:     limitInt,
+		Timeout:   time.Duration(timeoutInt) * time.Second,
 	}
 
-	viper.SetConfigFile(cfgPath)
-	viper.SetConfigType("toml")
-	viper.AutomaticEnv()
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+	if err := fileutil.EnsureDir(config.DataDir); err != nil {
+		return nil, fmt.Errorf("failed to create data directory: %w", err)
 	}
 
-	cfg := &Config{HomeDir: homeDir}
-	if err := viper.Unmarshal(cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config: %w", err)
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
+	if config.ArlCookie == "" {
+		return nil, fmt.Errorf("ARL_COOKIE environment variable is not set")
 	}
 
-	if err := store.OpenDB(cfgDir); err != nil {
-		return nil, err
+	if config.SecretKey == "" {
+		return nil, fmt.Errorf("SECRET_KEY environment variable is not set")
 	}
 
-	return cfg, nil
+	return config, nil
 }
 
 func (c *Config) Validate() error {
@@ -74,9 +75,6 @@ func (c *Config) Validate() error {
 	}
 	if len(c.SecretKey) != 16 {
 		return fmt.Errorf("secret_key must be 16 bytes long")
-	}
-	if c.OutputDir == "" {
-		c.OutputDir = filepath.Join(c.HomeDir, "Music", "GoDeez")
 	}
 
 	return nil
