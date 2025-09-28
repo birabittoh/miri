@@ -3,8 +3,6 @@ package deezer
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/flytam/filenamify"
 )
 
 type Contributors struct {
@@ -46,20 +44,4 @@ func (s *Song) GetTitle() string {
 	}
 
 	return songTitle
-}
-
-func (s *Song) GetFileName(resourceType, mediaFormat string, song *Song) string {
-	ext := "mp3"
-	if mediaFormat == "FLAC" {
-		ext = "flac"
-	}
-	trackNumber := ""
-	if resourceType == "album" {
-		trackNumber = song.TrackNumber + ". "
-	}
-
-	fileName := fmt.Sprintf("%s%s - %s.%s", trackNumber, s.Artist, s.GetTitle(), ext)
-	fileName, _ = filenamify.Filenamify(fileName, filenamify.Options{MaxLength: 255})
-
-	return fileName
 }
