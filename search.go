@@ -1,4 +1,4 @@
-package miri
+package main
 
 import (
 	"context"

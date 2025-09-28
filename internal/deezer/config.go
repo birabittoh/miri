@@ -1,13 +1,10 @@
-package config
+package deezer
 
 import (
 	"fmt"
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/birabittoh/miri/internal/fileutil"
-	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -19,6 +16,21 @@ type Config struct {
 	Timeout   time.Duration
 }
 
+func ensureDir(path string) error {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return os.MkdirAll(path, 0755)
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("file already exists at %s", path)
+	}
+
+	return nil
+}
+
 func getEnv(key, defaultValue string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
@@ -26,32 +38,28 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-func New() (*Config, error) {
-	godotenv.Load()
-
-	limit := getEnv("LIMIT", "100")
-	timeout := getEnv("TIMEOUT", "30")
-
-	limitInt, err := strconv.Atoi(limit)
-	if err != nil || limitInt <= 0 {
-		limitInt = 100
+func NewConfig() (*Config, error) {
+	limit, err := strconv.Atoi(getEnv("LIMIT", "100"))
+	if err != nil || limit <= 0 {
+		limit = 100
 	}
 
-	timeoutInt, err := strconv.Atoi(timeout)
+	timeoutInt, err := strconv.Atoi(getEnv("TIMEOUT", "30"))
 	if err != nil || timeoutInt <= 0 {
 		timeoutInt = 30
 	}
+	timeout := time.Duration(timeoutInt) * time.Second
 
 	config := &Config{
 		ArlCookie: getEnv("ARL_COOKIE", ""),
 		SecretKey: getEnv("SECRET_KEY", ""),
 		DataDir:   getEnv("DATA_DIR", "data"),
 		Quality:   getEnv("QUALITY", "mp3_128"),
-		Limit:     limitInt,
-		Timeout:   time.Duration(timeoutInt) * time.Second,
+		Limit:     limit,
+		Timeout:   timeout,
 	}
 
-	if err := fileutil.EnsureDir(config.DataDir); err != nil {
+	if err := ensureDir(config.DataDir); err != nil {
 		return nil, fmt.Errorf("failed to create data directory: %w", err)
 	}
 
@@ -61,6 +69,11 @@ func New() (*Config, error) {
 
 	if config.SecretKey == "" {
 		return nil, fmt.Errorf("SECRET_KEY environment variable is not set")
+	}
+
+	err = config.Validate()
+	if err != nil {
+		return nil, err
 	}
 
 	return config, nil

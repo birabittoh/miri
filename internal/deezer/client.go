@@ -8,16 +8,14 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/birabittoh/miri/internal/config"
 )
 
 type Client struct {
-	AppConfig *config.Config
+	AppConfig *Config
 	Session   *Session
 }
 
-func NewClient(ctx context.Context, appConfig *config.Config) (*Client, error) {
+func NewClient(ctx context.Context, appConfig *Config) (*Client, error) {
 	session, err := Authenticate(ctx, appConfig.ArlCookie)
 	if err != nil {
 		return nil, fmt.Errorf("failed to authenticate: %w", err)

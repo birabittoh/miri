@@ -3,11 +3,8 @@ package deezer
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 	"strconv"
 	"time"
-
-	"github.com/flytam/filenamify"
 )
 
 type Album struct {
@@ -62,14 +59,6 @@ func (a *Album) GetSongs() []*Song {
 
 func (a *Album) SetSongs(s []*Song) {
 	a.Results.Songs.Data = s
-}
-
-func (a *Album) GetOutputDir(outputDir string) string {
-	base := fmt.Sprintf("%s - %s", a.Results.Data.Artist, a.Results.Data.Title)
-	base, _ = filenamify.Filenamify(base, filenamify.Options{})
-	outputDir = path.Join(outputDir, base)
-
-	return outputDir
 }
 
 func (a *Album) Unmarshal(data []byte) error {

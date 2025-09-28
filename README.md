@@ -2,9 +2,60 @@
 
 A comfy way to download music from Deezer, heavily ~stolen~ inspired by [GoDeez](https://github.com/mathismqn/godeez).
 
-### Variables to configure
+## Example usage
+```go
+package main
 
-Here are the key variables you need to set in `.env`:
+import (
+	"context"
+	"log"
+	"strconv"
+
+	"github.com/birabittoh/miri/internal/deezer"
+	"github.com/birabittoh/miri"
+	"github.com/joho/godotenv"
+)
+
+func main() {
+	godotenv.Load() // load .env file
+	ctx := context.Background()
+
+	cfg, err := deezer.NewConfig() // from env variables
+	if err != nil {
+		log.Fatalf("failed to create config: %v", err)
+	}
+
+	m, err := miri.New(ctx, cfg) // creates miri client
+	if err != nil {
+		log.Fatalf("failed to create Miri client: %v", err)
+	}
+
+	res, err := m.SearchTracks(ctx, "eminem")
+	if err != nil {
+		log.Fatalf("failed to search tracks: %v", err)
+	}
+	if len(res) == 0 {
+		log.Fatal("no tracks found")
+	}
+
+	data, cover, err := m.DownloadTrackByID(ctx, strconv.Itoa(res[0].ID))
+	if err != nil {
+		log.Fatalf("failed to download track: %v", err)
+	}
+
+	if len(data) == 0 {
+		log.Fatal("downloaded data is empty")
+	}
+
+	if len(cover) == 0 {
+		log.Println("cover image is empty")
+	}
+}
+```
+
+## Variables
+
+Here are the key variables you need to set in your config object:
 
 1. `ARL_COOKIE`
 * **What is it?**: The `arl_cookie` is a session cookie used for authentication with Deezer. Without this cookie, the downloader cannot access your account to retrieve playlists, albums, or songs.

@@ -1,4 +1,4 @@
-package miri
+package main
 
 import (
 	"bytes"
@@ -9,25 +9,20 @@ import (
 	"log"
 	"strings"
 
-	"github.com/birabittoh/miri/internal/config"
-	"github.com/birabittoh/miri/internal/crypto"
 	"github.com/birabittoh/miri/internal/deezer"
-	"github.com/birabittoh/miri/internal/logger"
 )
 
 const chunkSize = 2048
 
 type Client struct {
-	appConfig    *config.Config
+	appConfig    *deezer.Config
 	deezerClient *deezer.Client
-	Logger       *logger.Logger
 }
 
-func New(ctx context.Context, appConfig *config.Config) (c *Client, err error) {
+func New(ctx context.Context, appConfig *deezer.Config) (c *Client, err error) {
 	c = &Client{
 		appConfig:    appConfig,
 		deezerClient: nil,
-		Logger:       logger.New(nil), // Initialize with a nil logger, can be set later
 	}
 
 	c.deezerClient, err = deezer.NewClient(ctx, c.appConfig)
@@ -61,7 +56,7 @@ func (c *Client) downloadSong(ctx context.Context, song *deezer.Song) (content [
 
 	mediaFormat := media.GetFormat()
 
-	key := crypto.GetKey(c.appConfig.SecretKey, song.ID)
+	key := GetKey(c.appConfig.SecretKey, song.ID)
 
 	var buffer bytes.Buffer
 	if err := c.streamMedia(dlCtx, stream, key, &buffer); err != nil {
@@ -112,7 +107,7 @@ func (c *Client) streamMedia(ctx context.Context, stream io.ReadCloser, key []by
 		}
 
 		if chunk%3 == 0 && totalRead == chunkSize {
-			buffer, err = crypto.Decrypt(buffer, key)
+			buffer, err = Decrypt(buffer, key)
 			if err != nil {
 				return err
 			}
