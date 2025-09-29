@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 type SongResult struct {
@@ -36,10 +37,11 @@ type SearchResults struct {
 const (
 	deezerAPIBase  = "https://api.deezer.com/"
 	endpointSearch = "search"
+	endpointTrack  = "track"
 )
 
 func (c *Client) SearchTracks(ctx context.Context, query string) (results []SongResult, err error) {
-	url := fmt.Sprintf("%s%s/track?q=%s&output=json", deezerAPIBase, endpointSearch, query)
+	url := fmt.Sprintf("%s%s/%s?q=%s&output=json", deezerAPIBase, endpointSearch, endpointTrack, url.QueryEscape(query))
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
