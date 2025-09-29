@@ -20,7 +20,10 @@ func main() {
 	godotenv.Load() // load .env file
 	ctx := context.Background()
 
-	cfg, err := deezer.NewConfig() // from env variables
+	arlCookie := os.Getenv("ARL_COOKIE")
+	secretKey := os.Getenv("SECRET_KEY")
+
+	cfg, err := deezer.NewConfig(arlCookie, secretKey)
 	if err != nil {
 		log.Fatalf("failed to create config: %v", err)
 	}
@@ -38,7 +41,8 @@ func main() {
 		log.Fatal("no tracks found")
 	}
 
-	data, cover, err := m.DownloadTrackByID(ctx, strconv.Itoa(res[0].ID))
+	trackID := strconv.Itoa(res[0].ID)
+	data, cover, err := m.DownloadTrackByID(ctx, trackID)
 	if err != nil {
 		log.Fatalf("failed to download track: %v", err)
 	}
@@ -47,8 +51,10 @@ func main() {
 		log.Fatal("downloaded data is empty")
 	}
 
-	if len(cover) == 0 {
-		log.Println("cover image is empty")
+	if cover == "" {
+		log.Println("no cover image available")
+	} else {
+		log.Println("Cover: " + cover)
 	}
 }
 ```
@@ -57,7 +63,7 @@ func main() {
 
 Here are the key variables you need to set in your config object:
 
-1. `ARL_COOKIE`
+1. `ArlCookie`
 * **What is it?**: The `arl_cookie` is a session cookie used for authentication with Deezer. Without this cookie, the downloader cannot access your account to retrieve playlists, albums, or songs.
 * **How to retrieve it**:
 	1.	Open your browser and log in to your Deezer account.
@@ -66,7 +72,7 @@ Here are the key variables you need to set in your config object:
 	4.	In the left panel, look for Cookies and select `https://www.deezer.com`.
 	5.	Find the arl cookie and copy its value.
 
-2. `SECRET_KEY`
+2. `SecretKey`
 * **What is it?**: The `secret_key` is a cryptographic value used to decrypt Deezer’s media files.
 * **How to retrieve it?**: While we cannot provide the specific secret_key in this documentation, it can be found online through various sources or developer communities that focus on Deezer.
 

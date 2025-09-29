@@ -2,69 +2,36 @@ package deezer
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 )
+
+const (
+	defaultQuality = "mp3_128"
+	defaultTimeout = 30 * time.Second
+)
+
+var validQualities = map[string]bool{
+	"mp3_128": true,
+	"mp3_320": true,
+	"flac":    true,
+}
 
 type Config struct {
 	ArlCookie string
 	SecretKey string
-	DataDir   string
 	Quality   string
 	Timeout   time.Duration
 }
 
-func ensureDir(path string) error {
-	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return os.MkdirAll(path, 0755)
-	}
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("file already exists at %s", path)
-	}
-
-	return nil
-}
-
-func getEnv(key, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return defaultValue
-}
-
-func NewConfig() (*Config, error) {
-	timeoutInt, err := strconv.Atoi(getEnv("TIMEOUT", "30"))
-	if err != nil || timeoutInt <= 0 {
-		timeoutInt = 30
-	}
-	timeout := time.Duration(timeoutInt) * time.Second
-
+func NewConfig(arlCookie, secretKey string) (*Config, error) {
 	config := &Config{
-		ArlCookie: getEnv("ARL_COOKIE", ""),
-		SecretKey: getEnv("SECRET_KEY", ""),
-		DataDir:   getEnv("DATA_DIR", "data"),
-		Quality:   getEnv("QUALITY", "mp3_128"),
-		Timeout:   timeout,
+		ArlCookie: arlCookie,
+		SecretKey: secretKey,
+		Quality:   defaultQuality,
+		Timeout:   defaultTimeout,
 	}
 
-	if err := ensureDir(config.DataDir); err != nil {
-		return nil, fmt.Errorf("failed to create data directory: %w", err)
-	}
-
-	if config.ArlCookie == "" {
-		return nil, fmt.Errorf("ARL_COOKIE environment variable is not set")
-	}
-
-	if config.SecretKey == "" {
-		return nil, fmt.Errorf("SECRET_KEY environment variable is not set")
-	}
-
-	err = config.Validate()
+	err := config.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +48,15 @@ func (c *Config) Validate() error {
 	}
 	if len(c.SecretKey) != 16 {
 		return fmt.Errorf("secret_key must be 16 bytes long")
+	}
+
+	if c.Timeout <= 0 {
+		c.Timeout = defaultTimeout
+	}
+
+	_, ok := validQualities[c.Quality]
+	if !ok {
+		return fmt.Errorf("invalid quality: %s", c.Quality)
 	}
 
 	return nil
