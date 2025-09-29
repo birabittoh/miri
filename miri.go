@@ -31,25 +31,23 @@ func New(ctx context.Context, appConfig *deezer.Config) (c *Client, err error) {
 	}
 
 	q := c.appConfig.Quality
-
 	if !c.deezerClient.Session.Premium && (q == "mp3_320" || q == "flac") {
 		return c, fmt.Errorf("premium account required for '%s' quality", q)
 	}
 	return
 }
 
-func (c *Client) GetSongContent(ctx context.Context, song *deezer.Song, target io.Writer) (cover string, err error) {
+func (c *Client) getSongContent(ctx context.Context, song *deezer.Song, target io.Writer) error {
 	quality := c.appConfig.Quality
-	cover = song.Cover
 
 	media, err := c.deezerClient.FetchMedia(ctx, song, quality)
 	if err != nil {
-		return cover, fmt.Errorf("failed to fetch media: %w", err)
+		return fmt.Errorf("failed to fetch media: %w", err)
 	}
 
 	stream, err := c.deezerClient.GetMediaStream(ctx, media, song.ID)
 	if err != nil {
-		return cover, fmt.Errorf("failed to get media stream: %w", err)
+		return fmt.Errorf("failed to get media stream: %w", err)
 	}
 
 	dlCtx, cancel := context.WithTimeout(ctx, c.appConfig.Timeout)
@@ -57,18 +55,18 @@ func (c *Client) GetSongContent(ctx context.Context, song *deezer.Song, target i
 
 	mediaFormat := media.GetFormat()
 	key := deezer.GetKey(c.appConfig.SecretKey, song.ID)
-	if err := c.StreamMedia(dlCtx, stream, key, target); err != nil {
-		return cover, fmt.Errorf("failed to stream to target: %w", err)
+	if err := c.streamMedia(dlCtx, stream, key, target); err != nil {
+		return fmt.Errorf("failed to stream to target: %w", err)
 	}
 
 	if quality != strings.ToLower(mediaFormat) {
 		log.Printf("requested quality '%s' not available, using '%s' instead", quality, strings.ToLower(mediaFormat))
 	}
 
-	return cover, nil
+	return nil
 }
 
-func (c *Client) StreamMedia(ctx context.Context, stream io.ReadCloser, key []byte, target io.Writer) (err error) {
+func (c *Client) streamMedia(ctx context.Context, stream io.ReadCloser, key []byte, target io.Writer) (err error) {
 	defer stream.Close()
 
 	buffer := make([]byte, chunkSize)
@@ -133,30 +131,31 @@ func (c *Client) getSongsFromTrackID(ctx context.Context, trackID string) (songs
 	return songs, nil
 }
 
-func (c *Client) DownloadTrackByID(ctx context.Context, trackID string) ([]byte, string, error) {
+func (c *Client) DownloadTrackByID(ctx context.Context, trackID string) ([]byte, error) {
 	songs, err := c.getSongsFromTrackID(ctx, trackID)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get songs from track ID: %w", err)
+		return nil, fmt.Errorf("failed to get songs from track ID: %w", err)
 	}
 
 	var buffer bytes.Buffer
-	cover, err := c.GetSongContent(ctx, songs[0], &buffer)
+	err = c.getSongContent(ctx, songs[0], &buffer)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get song content: %w", err)
+		return nil, fmt.Errorf("failed to get song content: %w", err)
 	}
 
-	return buffer.Bytes(), cover, nil
+	return buffer.Bytes(), nil
 }
 
-func (c *Client) StreamTrackByID(ctx context.Context, trackID string, target io.Writer) (string, error) {
+func (c *Client) StreamTrackByID(ctx context.Context, trackID string, target io.Writer) error {
 	songs, err := c.getSongsFromTrackID(ctx, trackID)
 	if err != nil {
-		return "", fmt.Errorf("failed to get songs from track ID: %w", err)
-	}
-	cover, err := c.GetSongContent(ctx, songs[0], target)
-	if err != nil {
-		return "", fmt.Errorf("failed to get song content: %w", err)
+		return fmt.Errorf("failed to get songs from track ID: %w", err)
 	}
 
-	return cover, nil
+	err = c.getSongContent(ctx, songs[0], target)
+	if err != nil {
+		return fmt.Errorf("failed to get song content: %w", err)
+	}
+
+	return nil
 }

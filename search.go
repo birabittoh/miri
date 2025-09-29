@@ -9,6 +9,13 @@ import (
 	"net/url"
 )
 
+var validSizes = map[string]bool{
+	"small":  true,
+	"medium": true,
+	"big":    true,
+	"xl":     true,
+}
+
 type SongResult struct {
 	ID       int    `json:"id"`
 	Readable bool   `json:"readable"`
@@ -38,8 +45,10 @@ const (
 	deezerAPIBase  = "https://api.deezer.com/"
 	endpointSearch = "search"
 	endpointTrack  = "track"
+	endpointAlbum  = "album"
 )
 
+// SearchTracks searches for tracks on Deezer matching the given query.
 func (c *Client) SearchTracks(ctx context.Context, query string) (results []SongResult, err error) {
 	url := fmt.Sprintf("%s%s/%s?q=%s&output=json", deezerAPIBase, endpointSearch, endpointTrack, url.QueryEscape(query))
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -69,4 +78,15 @@ func (c *Client) SearchTracks(ctx context.Context, query string) (results []Song
 	}
 
 	return searchResults.Data, nil
+}
+
+// CoverURL returns the URL of the album cover image in the specified size.
+// Valid sizes are "small", "medium", "big", and "xl".
+func (s *SongResult) CoverURL(size string) string {
+	if validSizes[size] {
+		size = "?size=" + size
+	} else {
+		size = ""
+	}
+	return fmt.Sprintf("%s%s/%d/image%s", deezerAPIBase, endpointAlbum, s.Album.ID, size)
 }
