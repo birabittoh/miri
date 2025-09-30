@@ -131,14 +131,23 @@ func (c *Client) getSongsFromTrackID(ctx context.Context, trackID string) (songs
 	return songs, nil
 }
 
-func (c *Client) DownloadTrackByID(ctx context.Context, trackID string) ([]byte, error) {
+func (c *Client) GetSongFromTrackID(ctx context.Context, trackID string) (*deezer.Song, error) {
 	songs, err := c.getSongsFromTrackID(ctx, trackID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get songs from track ID: %w", err)
 	}
 
+	return songs[0], nil
+}
+
+func (c *Client) DownloadTrackByID(ctx context.Context, trackID string) ([]byte, error) {
+	song, err := c.GetSongFromTrackID(ctx, trackID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get song from track ID: %w", err)
+	}
+
 	var buffer bytes.Buffer
-	err = c.getSongContent(ctx, songs[0], &buffer)
+	err = c.getSongContent(ctx, song, &buffer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get song content: %w", err)
 	}
@@ -147,12 +156,12 @@ func (c *Client) DownloadTrackByID(ctx context.Context, trackID string) ([]byte,
 }
 
 func (c *Client) StreamTrackByID(ctx context.Context, trackID string, target io.Writer) error {
-	songs, err := c.getSongsFromTrackID(ctx, trackID)
+	song, err := c.GetSongFromTrackID(ctx, trackID)
 	if err != nil {
 		return fmt.Errorf("failed to get songs from track ID: %w", err)
 	}
 
-	err = c.getSongContent(ctx, songs[0], target)
+	err = c.getSongContent(ctx, song, target)
 	if err != nil {
 		return fmt.Errorf("failed to get song content: %w", err)
 	}
