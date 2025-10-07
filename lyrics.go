@@ -16,8 +16,8 @@ type LyricsResponse struct {
 }
 
 func (s *SongResult) Lyrics() (string, error) {
-	artist := url.QueryEscape(s.Artist.Name)
-	title := url.QueryEscape(s.Title)
+	artist := url.PathEscape(s.Artist.Name)
+	title := url.PathEscape(s.Title)
 	lyricsURL := fmt.Sprintf(lyricsURLFormat, artist, title)
 
 	req, err := http.NewRequest("GET", lyricsURL, nil)
