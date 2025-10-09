@@ -100,7 +100,7 @@ func (opt *SearchOptions) Validate() error {
 }
 
 // SearchTracks searches for tracks on Deezer matching the given query.
-func (c *Client) SearchTracks(ctx context.Context, opt SearchOptions) (results []SongResult, err error) {
+func SearchTracks(ctx context.Context, opt SearchOptions) (results []SongResult, err error) {
 	err = opt.Validate()
 	if err != nil {
 		return nil, err

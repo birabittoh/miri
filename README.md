@@ -21,18 +21,8 @@ func main() {
 	arlCookie := os.Getenv("ARL_COOKIE")
 	secretKey := os.Getenv("SECRET_KEY")
 
-	cfg, err := miri.NewConfig(arlCookie, secretKey)
-	if err != nil {
-		log.Fatalf("failed to create config: %v", err)
-	}
-
-	m, err := miri.New(ctx, cfg) // creates miri client
-	if err != nil {
-		log.Fatalf("failed to create Miri client: %v", err)
-	}
-
 	opt := miri.SearchOptions{Limit: 1, Query: "eminem"}
-	res, err := m.SearchTracks(ctx, opt)
+	res, err := miri.SearchTracks(ctx, opt)
 	if err != nil {
 		log.Fatalf("failed to search tracks: %v", err)
 	}
@@ -41,7 +31,18 @@ func main() {
 	}
 
 	track := res[0]
-	data, err := m.DownloadTrackByID(ctx, track.ID)
+
+	cfg, err := miri.NewConfig(arlCookie, secretKey)
+	if err != nil {
+		log.Fatalf("failed to create config: %v", err)
+	}
+
+	c, err := miri.New(ctx, cfg) // new miri client
+	if err != nil {
+		log.Fatalf("failed to create Miri client: %v", err)
+	}
+
+	data, err := c.DownloadTrackByID(ctx, track.ID)
 	if err != nil {
 		log.Fatalf("failed to download track: %v", err)
 	}
