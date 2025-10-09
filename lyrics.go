@@ -1,26 +1,35 @@
 package miri
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
-	"strings"
 )
 
-const lyricsURLFormat = "https://api.lyrics.ovh/v1/%s/%s"
+const lyricsURLFormat = "https://lyrics.lewdhutao.my.eu.org/v2/musixmatch/lyrics?title=%s&artist=%s"
 
 type LyricsResponse struct {
-	Lyrics string `json:"lyrics"`
+	Data struct {
+		ArtistName   string `json:"artistName"`
+		TrackName    string `json:"trackName"`
+		TrackID      string `json:"trackId"`
+		SearchEngine string `json:"searchEngine"`
+		ArtworkURL   string `json:"artworkUrl"`
+		Lyrics       string `json:"lyrics"`
+	} `json:"data"`
+	Metadata struct {
+		ApiVersion string `json:"apiVersion"`
+	} `json:"metadata"`
 }
 
-func (s *SongResult) Lyrics() (string, error) {
-	artist := url.PathEscape(s.Artist.Name)
-	title := url.PathEscape(s.Title)
-	lyricsURL := fmt.Sprintf(lyricsURLFormat, artist, title)
+func (s *SongResult) Lyrics(ctx context.Context) (string, error) {
+	artist := url.QueryEscape(s.Artist.Name)
+	title := url.QueryEscape(s.Title)
+	lyricsURL := fmt.Sprintf(lyricsURLFormat, title, artist)
 
-	req, err := http.NewRequest("GET", lyricsURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", lyricsURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -40,13 +49,14 @@ func (s *SongResult) Lyrics() (string, error) {
 		return "", fmt.Errorf("failed to decode lyrics response: %w", err)
 	}
 
-	if lyricsResp.Lyrics == "" {
+	if lyricsResp.Data.Lyrics == "" {
 		return "", fmt.Errorf("no lyrics found for %s - %s", s.Artist.Name, s.Title)
 	}
 
-	return formatLyrics(lyricsResp.Lyrics), nil
+	return lyricsResp.Data.Lyrics, nil
 }
 
+/*
 func formatLyrics(rawLyrics string) string {
 	// Normalize newlines to \n
 	normalized := strings.ReplaceAll(rawLyrics, "\r\n", "\n")
@@ -66,3 +76,4 @@ func formatLyrics(rawLyrics string) string {
 	// Remove leading/trailing whitespaces
 	return strings.TrimSpace(formatted)
 }
+*/
