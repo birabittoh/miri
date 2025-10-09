@@ -1,4 +1,4 @@
-package deezer
+package miri
 
 type Resource interface {
 	GetTitle() string

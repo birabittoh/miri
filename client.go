@@ -1,4 +1,4 @@
-package deezer
+package miri
 
 import (
 	"bytes"
@@ -7,27 +7,29 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
-type Client struct {
-	AppConfig *Config
-	Session   *Session
-}
-
-func NewClient(ctx context.Context, appConfig *Config) (*Client, error) {
-	session, err := Authenticate(ctx, appConfig.ArlCookie)
+func New(ctx context.Context, appConfig *Config) (*Client, error) {
+	session, err := authenticate(ctx, appConfig.ArlCookie)
 	if err != nil {
 		return nil, fmt.Errorf("failed to authenticate: %w", err)
 	}
 
-	return &Client{
-		AppConfig: appConfig,
-		Session:   session,
-	}, nil
+	c := &Client{appConfig: appConfig, session: session}
+
+	q := appConfig.Quality
+
+	if !c.session.Premium && (q == "mp3_320" || q == "flac") {
+		return c, fmt.Errorf("premium account required for '%s' quality", q)
+	}
+
+	return c, nil
 }
 
-func (c *Client) FetchResource(ctx context.Context, resource Resource, id string) error {
+func (c *Client) fetchResource(ctx context.Context, resource Resource, id int) error {
+	resourceID := strconv.Itoa(id)
 	payload := map[string]interface{}{
 		"nb":     10000,
 		"start":  0,
@@ -38,13 +40,13 @@ func (c *Client) FetchResource(ctx context.Context, resource Resource, id string
 	}
 	switch r := resource.(type) {
 	case *Playlist:
-		payload["playlist_id"] = id
+		payload["playlist_id"] = resourceID
 	case *Album:
-		payload["alb_id"] = id
+		payload["alb_id"] = resourceID
 	case *Artist:
-		payload["art_id"] = id
+		payload["art_id"] = resourceID
 	case *Track:
-		payload["sng_id"] = id
+		payload["sng_id"] = resourceID
 	default:
 		return fmt.Errorf("unsupported resource type: %T", r)
 	}
@@ -54,13 +56,13 @@ func (c *Client) FetchResource(ctx context.Context, resource Resource, id string
 		return err
 	}
 
-	url := fmt.Sprintf("https://www.deezer.com/ajax/gw-light.php?method=deezer.page%s&input=3&api_version=1.0&api_token=%s", resource.GetType(), c.Session.APIToken)
+	url := fmt.Sprintf("https://www.deezer.com/ajax/gw-light.php?method=deezer.page%s&input=3&api_version=1.0&api_token=%s", resource.GetType(), c.session.APIToken)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.Session.HttpClient.Do(req)
+	resp, err := c.session.HttpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -93,7 +95,7 @@ func (c *Client) FetchResource(ctx context.Context, resource Resource, id string
 	return resource.Unmarshal(body)
 }
 
-func (c *Client) FetchMedia(ctx context.Context, song *Song, quality string) (*Media, error) {
+func (c *Client) fetchMedia(ctx context.Context, song *Song, quality string) (*Media, error) {
 	var formats string
 
 	switch quality {
@@ -105,13 +107,13 @@ func (c *Client) FetchMedia(ctx context.Context, song *Song, quality string) (*M
 		formats = `[{"cipher":"BF_CBC_STRIPE","format":"FLAC"},{"cipher":"BF_CBC_STRIPE","format":"MP3_320"},{"cipher":"BF_CBC_STRIPE","format":"MP3_128"}]`
 	}
 
-	reqBody := fmt.Sprintf(`{"license_token":"%s","media":[{"type":"FULL","formats":%s}],"track_tokens":["%s"]}`, c.Session.LicenseToken, formats, song.TrackToken)
+	reqBody := fmt.Sprintf(`{"license_token":"%s","media":[{"type":"FULL","formats":%s}],"track_tokens":["%s"]}`, c.session.LicenseToken, formats, song.TrackToken)
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://media.deezer.com/v1/get_url", bytes.NewBuffer([]byte(reqBody)))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.Session.HttpClient.Do(req)
+	resp, err := c.session.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -155,26 +157,6 @@ func (c *Client) FetchMedia(ctx context.Context, song *Song, quality string) (*M
 	return &media, nil
 }
 
-func (c *Client) FetchCoverImage(ctx context.Context, song *Song) ([]byte, error) {
-	url := fmt.Sprintf("https://e-cdn-images.dzcdn.net/images/cover/%s/500x500-000000-80-0-0.jpg", song.Cover)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.Session.HttpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return io.ReadAll(resp.Body)
-}
-
 func (c *Client) GetMediaStream(ctx context.Context, media *Media, songID string) (io.ReadCloser, error) {
 	url := media.GetURL()
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -182,7 +164,7 @@ func (c *Client) GetMediaStream(ctx context.Context, media *Media, songID string
 		return nil, err
 	}
 
-	streamingClient := *c.Session.HttpClient
+	streamingClient := *c.session.HttpClient
 	streamingClient.Timeout = 0
 
 	resp, err := streamingClient.Do(req)

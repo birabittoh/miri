@@ -1,4 +1,4 @@
-package deezer
+package miri
 
 import (
 	"context"
@@ -32,7 +32,7 @@ type Session struct {
 	Premium      bool
 }
 
-func Authenticate(ctx context.Context, arlCookie string) (*Session, error) {
+func authenticate(ctx context.Context, arlCookie string) (*Session, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err

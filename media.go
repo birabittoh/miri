@@ -1,4 +1,4 @@
-package deezer
+package miri
 
 type Media struct {
 	Errors []MediaError `json:"errors"`

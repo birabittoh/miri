@@ -1,4 +1,4 @@
-package deezer
+package miri
 
 import (
 	"fmt"

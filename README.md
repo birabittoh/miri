@@ -1,29 +1,27 @@
 # miri
 
-A comfy way to download music from Deezer, heavily ~stolen~ inspired by [GoDeez](https://github.com/mathismqn/godeez).
+An easy-to-use library to download music from Deezer, heavily ~stolen~ inspired by [GoDeez](https://github.com/mathismqn/godeez).
 
 ## Example usage
+
 ```go
 package main
 
 import (
 	"context"
 	"log"
-	"strconv"
+	"os"
 
-	"github.com/birabittoh/miri/internal/deezer"
 	"github.com/birabittoh/miri"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	godotenv.Load() // load .env file
 	ctx := context.Background()
 
 	arlCookie := os.Getenv("ARL_COOKIE")
 	secretKey := os.Getenv("SECRET_KEY")
 
-	cfg, err := deezer.NewConfig(arlCookie, secretKey)
+	cfg, err := miri.NewConfig(arlCookie, secretKey)
 	if err != nil {
 		log.Fatalf("failed to create config: %v", err)
 	}
@@ -33,7 +31,8 @@ func main() {
 		log.Fatalf("failed to create Miri client: %v", err)
 	}
 
-	res, err := m.SearchTracks(ctx, "eminem")
+	opt := miri.SearchOptions{Limit: 1, Query: "eminem"}
+	res, err := m.SearchTracks(ctx, opt)
 	if err != nil {
 		log.Fatalf("failed to search tracks: %v", err)
 	}
@@ -41,8 +40,8 @@ func main() {
 		log.Fatal("no tracks found")
 	}
 
-	trackID := strconv.Itoa(res[0].ID)
-	data, cover, err := m.DownloadTrackByID(ctx, trackID)
+	track := res[0]
+	data, err := m.DownloadTrackByID(ctx, track.ID)
 	if err != nil {
 		log.Fatalf("failed to download track: %v", err)
 	}
@@ -51,11 +50,8 @@ func main() {
 		log.Fatal("downloaded data is empty")
 	}
 
-	if cover == "" {
-		log.Println("no cover image available")
-	} else {
-		log.Println("Cover: " + cover)
-	}
+	coverURL := track.CoverURL("xl")
+	println(coverURL)
 }
 ```
 
@@ -74,7 +70,7 @@ Here are the key variables you need to set in your config object:
 
 2. `SecretKey`
 * **What is it?**: The `secret_key` is a cryptographic value used to decrypt Deezer’s media files.
-* **How to retrieve it?**: While we cannot provide the specific secret_key in this documentation, it can be found online through various sources or developer communities that focus on Deezer.
+* **Where to find it?**: While we cannot provide the specific secret_key in this documentation, it can be found online through various sources or developer communities that focus on Deezer.
 
 ## License
 
